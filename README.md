@@ -55,8 +55,5 @@ cd 1_bootloader
 
 
 ---
-
-
 MIT License
-
 ---
