@@ -52,7 +52,7 @@ cd deep-system-demos
 # Example: run bootloader demo
 cd 1_bootloader
 ./run_qemu.sh
-
+```
 
 ---
 MIT License
