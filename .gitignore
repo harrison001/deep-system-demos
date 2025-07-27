@@ -1,0 +1,70 @@
+# ===============================
+# Global ignores
+# ===============================
+
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# ===============================
+# Build outputs
+# ===============================
+
+# Rust target dir
+/target/
+/**/target/
+
+# C/C++ build artifacts
+*.o
+*.ko
+*.mod
+*.mod.c
+*.order
+*.symvers
+*.d
+*.so
+*.a
+*.out
+*.elf
+*.bin
+
+# Kernel build & debug leftovers
+/System.map
+/.config
+/Module.symvers
+/modules.order
+
+# ===============================
+# Bootloader/QEMU images
+# ===============================
+*.iso
+*.img
+*.vdi
+*.vmdk
+*.qcow2
+
+# ===============================
+# Logs & temporary files
+# ===============================
+*.log
+*.tmp
+*.bak
+*.old
+
+# ===============================
+# eBPF Clang/LLVM artifacts
+# ===============================
+*.bpf.o
+*.ll
+*.bc
+
+# ===============================
+# Web demo
+# ===============================
+demo_web/node_modules/
+demo_web/dist/
