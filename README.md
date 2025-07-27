@@ -6,6 +6,7 @@ It showcases *boot process, kernel debugging, microarchitecture behaviors (OoO, 
 ---
 
 ## 📂 Structure
+```
 deep-system-demos/
 ├── 1_bootloader/        # Custom bootloader + GDB debugging
 ├── 2_kernel_debug/      # Slimmed kernel build & remote debugging
@@ -13,7 +14,7 @@ deep-system-demos/
 ├── 4_ebpf_security/     # Syscall/file monitor via eBPF
 ├── 5_rust_vs_c/         # Assembly-level Rust vs C comparison
 └── demo_web/            # Simple HTML index for live demo
-
+```
 ---
 
 ## 🚀 Demos
@@ -51,5 +52,9 @@ cd deep-system-demos
 # Example: run bootloader demo
 cd 1_bootloader
 ./run_qemu.sh
+
 ---
+
 MIT License
+
+---
