@@ -1,0 +1,105 @@
+[package]
+name = "kernel-agent"
+version = "0.2.0"
+edition = "2021"
+description = "Advanced eBPF kernel monitoring agent with high-performance networking and security analysis"
+license = "MIT"
+authors = ["SentinelEdge Team"]
+
+[dependencies]
+anyhow = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+tokio-stream = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+fastrand = "2.0"
+uuid = { version = "1.0", features = ["v4"] }
+metrics = "0.21"
+metrics-exporter-prometheus = "0.12"
+num_cpus = "1.16"
+ctrlc = "3.4"
+
+# eBPF dependencies (Linux only)
+[target.'cfg(target_os = "linux")'.dependencies]
+libbpf-rs = "0.23"
+
+# Performance optimization dependencies
+crossbeam-channel = "0.5"
+crossbeam-utils = "0.8"
+parking_lot = "0.12"
+dashmap = "5.5"
+atomic = "0.6"
+
+# Networking dependencies
+socket2 = { version = "0.5", features = ["all"] }
+nix = { version = "0.27", features = ["net", "socket", "process", "signal", "user"] }
+libc = "0.2"
+
+# Memory management
+memmap2 = "0.9"
+
+# Build configuration
+[build-dependencies]
+cc = "1.0"
+
+# Features for conditional compilation
+[features]
+default = ["advanced-networking", "memory-analysis", "performance-optimized"]
+advanced-networking = []
+memory-analysis = []
+performance-optimized = []
+syscall-modification = []
+kernel-structures = []
+
+# Development dependencies
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.0"
+tokio-test = "0.4"
+tracing-subscriber = "0.3"
+
+# Benchmark configuration
+[[bench]]
+name = "performance"
+harness = false
+
+# Binary configuration
+#[[bin]]
+#name = "real_performance_test"
+#path = "src/bin/real_performance_test.rs"
+
+#[[bin]]
+#name = "simple_test"
+#path = "src/bin/simple_test.rs"
+
+#[[bin]]
+#name = "ring_buffer_test"
+#path = "src/bin/ring_buffer_test.rs"
+
+#[[bin]]
+#name = "simple_counter_test"
+#path = "src/bin/simple_counter_test.rs"
+
+#[[bin]]
+#name = "mimic_demo_test"
+#path = "src/bin/mimic_demo_test.rs"
+
+#[[bin]]
+#name = "simple_ring_test"
+#path = "src/bin/simple_ring_test.rs"
+
+[[bin]]
+name = "sentinel_loader"
+path = "src/sentinel_loader.rs" 
+
+[[bin]]
+name = "memory_analyzer_loader"
+path = "src/memory_analyzer_loader.rs"
+
+[[bin]]
+name = "syscall_modifier_loader"
+path = "src/syscall_modifier_loader.rs"
