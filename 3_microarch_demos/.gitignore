@@ -1,0 +1,12 @@
+# 忽略编译输出
+cpu_memory_model_test_fence
+cpu_memory_model_test_nofence
+
+# 忽略 perf 分析数据
+perf.data.*
+report.*.txt
+
+# 可选：忽略所有无源文件的 ELF 可执行文件（通用规则）
+*.out
+*.o
+*.bin
