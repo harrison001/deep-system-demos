@@ -13,12 +13,13 @@ start:
     sti                     ; Enable interrupts
 
     ; Display system information
-    mov si, system_info
+    lea si, [system_info]
     call print_string
-    mov si, security_msg
+    lea si, [security_msg]
     call print_string
-    mov si, divider_msg
+    lea si, [divider_msg]
     call print_string
+
 
     mov ax, 0x1fe0         ; Set new segment address
     mov es, ax             ; Set extra segment
@@ -42,7 +43,7 @@ check_partition:
     add di, 0x10           ; Next partition entry
     cmp di, 0x7dfe         ; End of partition table?
     jc check_partition     ; If not end, continue
-    mov si, error_msg      ; If no active partition
+    lea si,[error_msg]     ; If no active partition
     call print_string
     jmp $                  ; Infinite loop
 
@@ -81,25 +82,25 @@ active_part:
     pop es
 
     ; Print parameters to pass to Stage2
-    mov si, params_msg
+    lea si, [params_msg]
     call print_string
 
     ; Print cylinder and sector numbers
     mov ax, [di+2]
     call print_hex
-    mov si, comma_msg
+    lea si, [comma_msg]
     call print_string
 
     ; Print head number
     mov ax, [di+1]
     call print_hex
-    mov si, comma_msg
+    lea si, [comma_msg]
     call print_string
 
     ; Print drive number
     mov al, [boot_drive]
     call print_hex
-    mov si, crlf
+    lea si, [crlf]
     call print_string
 
 
@@ -120,12 +121,12 @@ active_part:
     jmp 0x2000:0 
 
 load_error:
-    mov si, stage2_load_error
+    lea si, [stage2_load_error]
     call print_string
     jmp $
 
 error:
-    mov si, error_msg
+    lea si, [error_msg]
     call print_string
     jmp $
 
