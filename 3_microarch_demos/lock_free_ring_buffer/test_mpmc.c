@@ -1,4 +1,4 @@
-// test_ringbuffer_mpmc.c
+// test_mpmc.c
 #include "ringbuffer_mpmc.h"
 #include <pthread.h>
 #include <stdio.h>
