@@ -1,13 +1,28 @@
 #!/bin/bash
 
+# Build binaries first
 ./build.sh
 
-echo "[*] Running without fence..."
-perf record -o perf.data.nofence ./cpu_memory_model_test_nofence
-perf report -i perf.data.nofence --stdio > report.nofence.txt
+echo "======================================="
+echo "[*] Running test_relaxed (no fence, relaxed)"
+perf record -o perf.data.relaxed ./test_relaxed
+perf report -i perf.data.relaxed --stdio > report.relaxed.txt
+echo "  ✅ Output: report.relaxed.txt"
 
-echo "[*] Running with fence..."
-perf record -o perf.data.fence ./cpu_memory_model_test_fence
+echo "======================================="
+echo "[*] Running test_fence (with seq_cst fence)"
+perf record -o perf.data.fence ./test_fence
 perf report -i perf.data.fence --stdio > report.fence.txt
+echo "  ✅ Output: report.fence.txt"
 
-echo "[*] Done. See report.nofence.txt and report.fence.txt"
+echo "======================================="
+echo "[*] Running test_ra (release/acquire)"
+perf record -o perf.data.ra ./test_ra
+perf report -i perf.data.ra --stdio > report.ra.txt
+echo "  ✅ Output: report.ra.txt"
+
+echo "======================================="
+echo "[*] All tests completed. Summary of reports:"
+echo "   - report.relaxed.txt"
+echo "   - report.fence.txt"
+echo "   - report.ra.txt"
