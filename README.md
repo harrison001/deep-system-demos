@@ -10,7 +10,7 @@ It showcases *boot process, kernel debugging, microarchitecture behaviors (OoO, 
 deep-system-demos/
 ├── 1_bootloader/        # Custom bootloader + GDB debugging
 ├── 2_kernel_debug/      # Slimmed kernel build & remote debugging
-├── 3_microarch_demos/   # Cache/TLB miss, NUMA, fences, OoO
+├── 3_microarch_demos/   # Cache/TLB miss, false sharing,pingpong, fences, OoO
 ├── 4_ebpf_security/     # Syscall/file monitor via eBPF
 ├── 5_rust_vs_c/         # Assembly-level Rust vs C comparison
 └── demo_web/            # Simple HTML index for live demo
@@ -21,7 +21,7 @@ deep-system-demos/
 
 ✅ Bootloader + password check before FreeDOS  
 ✅ Kernel build slim & GDB debug step  
-✅ Cache/TLB miss demo + NUMA + fence/OoO analysis  
+✅ Cache/TLB miss demo + false sharing + fence/OoO analysis  
 ✅ eBPF syscall monitor & file protection  
 ✅ Rust vs C: generated assembly comparison  
 
