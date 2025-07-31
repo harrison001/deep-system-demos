@@ -4,6 +4,8 @@
 #include <semaphore.h>
 #include <time.h>
 #include <stdatomic.h>
+#include <string.h>
+#include <sys/time.h>
 
 // Global variables - the classic test setup
 volatile int X = 0, Y = 0;
@@ -147,11 +149,49 @@ int run_classic_test(int num_iterations, int with_fence) {
     return reorder_detected;
 }
 
+// Performance benchmark version - focus on raw speed
+double run_performance_benchmark(int num_iterations, int with_fence) {
+    struct timeval start, end;
+    volatile int dummy_x = 0, dummy_y = 0;
+    volatile int dummy_r1, dummy_r2;
+    
+    gettimeofday(&start, NULL);
+    
+    // Single-threaded performance test to isolate fence overhead
+    for (int i = 0; i < num_iterations; i++) {
+        // Reset values
+        dummy_x = 0; dummy_y = 0;
+        
+        // Core operations that would be done in each thread
+        dummy_x = 1;
+        if (with_fence) memory_barrier();
+        else compiler_barrier();
+        dummy_r1 = dummy_y;
+        
+        dummy_y = 1; 
+        if (with_fence) memory_barrier();
+        else compiler_barrier();
+        dummy_r2 = dummy_x;
+        
+        // Prevent compiler from optimizing away the loop
+        if (dummy_r1 == 42 && dummy_r2 == 42) {
+            printf("impossible");
+        }
+    }
+    
+    gettimeofday(&end, NULL);
+    
+    double elapsed = (end.tv_sec - start.tv_sec) + 
+                    (end.tv_usec - start.tv_usec) / 1000000.0;
+    return elapsed;
+}
+
 int main(int argc, char *argv[]) {
-    if (argc < 2 || argc > 3) {
-        printf("Usage: %s <iterations> [fence 0|1]\n", argv[0]);
+    if (argc < 2 || argc > 4) {
+        printf("Usage: %s <iterations> [fence 0|1] [mode normal|perf]\n", argv[0]);
         printf("  iterations: number of test iterations\n");
         printf("  fence: 0=no fence, 1=memory fence (default: compare both)\n");
+        printf("  mode: normal=reordering test, perf=performance benchmark\n");
         printf("\nClassic Store→Load reordering test:\n");
         printf("  Thread1: X=1; r1=Y    Thread2: Y=1; r2=X\n");
         printf("  Detects: r1==0 && r2==0 (impossible without reordering)\n");
@@ -160,11 +200,49 @@ int main(int argc, char *argv[]) {
     
     int num_iterations = atoi(argv[1]);
     int fence_mode = (argc > 2) ? atoi(argv[2]) : -1;
+    int perf_mode = (argc > 3 && strcmp(argv[3], "perf") == 0) ? 1 : 0;
     
     // Seed random number generator
     srand(time(NULL));
     
     printf("🏗️  Architecture: %s\n", get_architecture());
+    
+    if (perf_mode) {
+        printf("⚡ Performance Benchmark Mode\n");
+        printf("📊 %d iterations (single-threaded)\n", num_iterations);
+        printf("\n🔬 Testing fence overhead:\n");
+        printf("   Operations: X=1; fence?; r1=Y; Y=1; fence?; r2=X\n\n");
+        
+        if (fence_mode == -1) {
+            // Compare performance with and without fence
+            printf("🚫 Without memory fence: ");
+            fflush(stdout);
+            double time_no_fence = run_performance_benchmark(num_iterations, 0);
+            printf("%.6f seconds (%.0f ops/sec)\n", time_no_fence, num_iterations / time_no_fence);
+            
+            printf("🛡️  With memory fence: ");  
+            fflush(stdout);
+            double time_with_fence = run_performance_benchmark(num_iterations, 1);
+            printf("%.6f seconds (%.0f ops/sec)\n", time_with_fence, num_iterations / time_with_fence);
+            
+            printf("\n📈 Performance Impact:\n");
+            double slowdown = time_with_fence / time_no_fence;
+            printf("  🐌 Slowdown: %.2fx (%.1f%% slower)\n", slowdown, (slowdown - 1) * 100);
+            printf("  ⏱️  Overhead per fence: %.2f ns\n", 
+                   (time_with_fence - time_no_fence) / (num_iterations * 2) * 1e9);
+        } else {
+            // Single performance test
+            const char* fence_str = fence_mode ? "with memory fence" : "without memory fence";
+            printf("Running %s: ", fence_str);
+            fflush(stdout);
+            
+            double elapsed = run_performance_benchmark(num_iterations, fence_mode);
+            printf("%.6f seconds (%.0f ops/sec)\n", elapsed, num_iterations / elapsed);
+        }
+        
+        return 0;
+    }
+    
     printf("🧪 Classic Memory Reordering Test (Store→Load)\n");
     printf("📊 %d iterations\n", num_iterations);
     printf("\n🔬 Test Pattern:\n");
