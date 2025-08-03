@@ -88,9 +88,9 @@ harness = false
 #name = "mimic_demo_test"
 #path = "src/bin/mimic_demo_test.rs"
 
-#[[bin]]
-#name = "simple_ring_test"
-#path = "src/bin/simple_ring_test.rs"
+[[bin]]
+name = "sentinel_fentry_loader"
+path = "src/sentinel_fentry_loader.rs"
 
 [[bin]]
 name = "sentinel_loader"
