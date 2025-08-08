@@ -1,0 +1,18 @@
+# Generated binary files
+*.bin
+*.img
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*~
+*.tmp
+*.swp
+*.bak
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
