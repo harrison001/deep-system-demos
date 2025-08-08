@@ -50,10 +50,6 @@ objcopy --add-symbol my_func1=0x7c10,function \
 
 
 
-
-
-
-
 dd if=freedos.img of=freedos_head_30M.img bs=1M count=30
 dd if=stage1.bin of=freedos_head_30M.img bs=446 count=1 conv=notrunc
 dd if=stage2.bin of=freedos_head_30M.img bs=512 seek=1 count=3 conv=notrunc

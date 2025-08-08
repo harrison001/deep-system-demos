@@ -69,3 +69,5 @@ Thumbs.db
 demo_web/node_modules/
 demo_web/dist/
 3_microarch_demos/x86_vs_arm_memory_order/classic_reorder_test
+demo_web/
+videos/
