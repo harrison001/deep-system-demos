@@ -35,8 +35,8 @@ start:
     lea si, [stage1_ok_msg]
     call print_string
 
-    ; Load Stage2 to 0x2000
-    mov ax, 0x2000          ; Stage2 load address segment
+    ; Load Stage2 to 0x6000
+    mov ax, 0x6000          ; Stage2 load address segment
     mov es, ax
     xor bx, bx              ; Offset address = 0
     mov ah, 0x02            ; BIOS 13h - Read sectors
@@ -52,7 +52,7 @@ start:
     mov byte [stage2_entry], 0xBB       ; Mark stage2 entry preparation
     
     ; Jump to Stage2
-    jmp 0x2000:0 
+    jmp 0x6000:0 
 
 stage1_error:
     lea si, [stage1_error_msg]

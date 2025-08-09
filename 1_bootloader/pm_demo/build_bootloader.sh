@@ -1,13 +1,29 @@
 #!/bin/bash
 
-echo "Building Protected Mode Bootloader with Custom Interrupt Demo..."
+# Support Method A/B selection via parameter
+METHOD=${1:-A}
+
+if [[ "$METHOD" != "A" && "$METHOD" != "B" ]]; then
+    echo "Usage: $0 [A|B]"
+    echo "  A - Method A (Runtime GDT patching) [default]"
+    echo "  B - Method B (Flat addressing)"
+    exit 1
+fi
+
+echo "Building Protected Mode Bootloader (Method $METHOD) with Custom Interrupt Demo..."
 
 # Assemble both stages
 echo "Assembling Stage1 (MBR bootloader)..."
 nasm -f bin bootloader_stage1.asm -o bootloader_stage1.bin
 
-echo "Assembling Stage2 (Protected mode with IDT)..."
-nasm -f bin bootloader_stage2.asm -o bootloader_stage2.bin
+echo "Assembling Stage2 (Protected mode with IDT) - Method $METHOD..."
+if [[ "$METHOD" == "A" ]]; then
+    nasm -f bin bootloader_stage2.asm -o bootloader_stage2.bin -dMETHOD_A
+    echo "Using Method A: Runtime GDT patching, immediate jump"
+else
+    nasm -f bin bootloader_stage2.asm -o bootloader_stage2.bin -dMETHOD_B
+    echo "Using Method B: Flat addressing, indirect jump"
+fi
 
 # Check if assembly succeeded
 if [ $? -eq 0 ]; then

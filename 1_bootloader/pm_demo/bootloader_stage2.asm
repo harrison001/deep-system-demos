@@ -1,48 +1,118 @@
 [bits 16]
-[org 0x0]                  ; IP starts from 0, but CS=0x2000
+[org 0x0]                  ; IP starts from 0, but CS=0x6000
+
+;----------------------------------------
+; Configuration - Use METHOD_A or METHOD_B
+; Define via command line: nasm -dMETHOD_A or nasm -dMETHOD_B
+;----------------------------------------
+%ifndef METHOD_A
+    %ifndef METHOD_B
+        %define METHOD_A        ; Default to METHOD_A if neither defined
+    %endif
+%endif
+
+;----------------------------------------
+; Method-specific constants and macros
+;----------------------------------------
+%ifdef METHOD_A
+    %define PM_CODE_SEL   SEL_CODEA     ; Use runtime-patched segment (0x08)
+    %define PM_ENTRY_MODE 0             ; 0 = immediate jump, 1 = indirect jump
+    %define HANDLER_ADDR_MODE 0         ; 0 = offset only, 1 = linear address
+    %define METHOD_NAME "Method A (Runtime GDT patch)"
+%endif
+
+%ifdef METHOD_B  
+    %define PM_CODE_SEL   SEL_CODEB     ; Use flat segment (0x10)
+    %define PM_ENTRY_MODE 1             ; 0 = immediate jump, 1 = indirect jump  
+    %define HANDLER_ADDR_MODE 1         ; 0 = offset only, 1 = linear address
+    %define METHOD_NAME "Method B (Flat addressing)"
+%endif
 
 ;----------------------------------------
 ; Stage 2 - Simplified 16-bit loader with integrated 32-bit protected mode
 ;----------------------------------------
 stage2_start:
-    ; Initialize segment registers
-    mov ax, cs            ; CS is already 0x2000
+    ;Initialize segment registers
+    mov ax, cs            ; CS is already 0x6000
     mov ds, ax
     mov ss, ax
     mov sp, 0x7c00
     mov es, ax
 
-    ; Show success message
+    ;Show success message
     mov si, stage2_msg
     call print_string
     
-    ; Enter protected mode
+    ;Enter protected mode
     mov si, entering_pm_msg
     call print_string
     
     cli                     ; Disable interrupts
     
-    ; Calculate correct GDT physical address at runtime
-    mov ax, cs              ; CS = 0x2000
+    ;Calculate correct GDT physical address at runtime
+    mov ax, cs              ; CS 
     mov dx, 16
-    mul dx                  ; AX = CS * 16 = 0x20000
+    mul dx                  ; AX = CS * 16 
     add ax, gdt_start       ; Add GDT offset
     adc dx, 0               ; Handle carry
     
-    ; Store in GDT descriptor
+    ;Store in GDT descriptor
     mov [gdt_descriptor + 2], ax    ; Low word
     mov [gdt_descriptor + 4], dx    ; High word
-    
-    ; Load GDT
-    lgdt [gdt_descriptor]
-    
-    ; Enter protected mode
-    mov eax, cr0
-    or al, 1
-    mov cr0, eax
-    
-    ; Jump to 32-bit code
-    jmp 0x08:pm_start_32
+   
+   ;-------------------------------------------- 统一的保护模式入口 ----------------------------------------
+   ; 根据配置选择不同的实现方法
+   
+   %if PM_ENTRY_MODE == 1
+   ; Method B: 间接跳转方式 (使用farptr)
+   ;compute target linear = (CS<<4) + pm_start_32  
+   xor  eax, eax
+   mov  ax, cs
+   shl  eax, 4
+   add  eax, pm_start_32        ; EAX = target address (linear for Method B)
+
+   ; Store target address and selector
+   mov  [farptr+0], eax         ; Store target address
+   mov  word [farptr+4], PM_CODE_SEL   ; Store code selector
+   %endif
+   
+   %if PM_ENTRY_MODE == 0
+   ; Method A: 需要运行时修补GDT
+   ; Calculate BASE = (CS << 4) → result in DX:AX
+   mov  ax, cs
+   mov  dx, 16
+   mul  dx                  ; DX:AX = CS * 16 (segment base address)
+
+   ; DI points to the code segment descriptor (skip null descriptor)
+   mov  di, gdt_start
+   add  di, 8
+
+   ; Write base_low (bytes 2..3)
+   mov  [di+2], ax          ; write 2 bytes (word)
+
+   ; Write base_mid (byte 4) = BASE[16..23] = low 8 bits of DX
+   mov  [di+4], dl          ; write 1 byte
+
+   ; Write base_high (byte 7) = BASE[24..31] = high 8 bits of DX
+   mov  [di+7], dh          ; for 0x60000 this will be 0   
+   %endif
+   
+   ; Load GDT (common for both methods)
+   lgdt [gdt_descriptor]
+
+   ; Enter protected mode (common for both methods)
+   mov eax, cr0
+   or al, 1
+   mov cr0, eax   
+
+   ; Jump to 32-bit code - method specific
+   %if PM_ENTRY_MODE == 0
+   jmp PM_CODE_SEL:pm_start_32      ; Direct immediate jump
+   %endif
+   %if PM_ENTRY_MODE == 1  
+   jmp far dword [farptr]           ; Indirect jump via farptr
+   %endif
+    ;-----------------------------------------------------------------------------------------------------
 
 ;----------------------------------------
 ; 16-bit print function
@@ -64,31 +134,61 @@ print_string:
 stage2_msg db "Stage2 simplified loader started!", 13, 10, 0
 entering_pm_msg db "Entering protected mode...", 13, 10, 0
 
-;----------------------------------------
-; Simple GDT
-;----------------------------------------
+; =========================
+; GDT table (32-bit pmode)
+; NASM syntax
+; =========================
+
+farptr: dd 0, 0
+temp_jump_addr: dd 0, 0
+; ------- selectors (index<<3 | TI=0 | RPL=0) -------
+SEL_NULL   equ 0x00        ; index 0
+SEL_CODEA  equ 0x08        ; index 1 → for Scheme A (runtime base patch)
+SEL_CODEB  equ 0x10        ; index 2 → for Scheme B (flat base=0)
+SEL_DATA   equ 0x18        ; index 3 → flat data
+
+; ------- helper macro: build one 8-byte descriptor -------
+; use: DESC base, limit, access, flags
+; access (typical): code=10011010b, data=10010010b
+; flags  (typical): 11001111b  ; G=1, D=1, L=0, AVL=0, limit_high=0xF
+%macro DESC 4
+    ; limit low
+    dw  (%2) & 0xFFFF
+    ; base low
+    dw  (%1) & 0xFFFF
+    ; base mid
+    db  ((%1) >> 16) & 0xFF
+    ; access
+    db  %3
+    ; flags + limit high
+    db  (((%2) >> 16) & 0x0F) | ((%4) & 0xF0)
+    ; base high
+    db  ((%1) >> 24) & 0xFF
+%endmacro
+
+; ------- common encodings -------
+ACC_CODE32  equ 10011010b   ; present, DPL=0, code, readable
+ACC_DATA32  equ 10010010b   ; present, DPL=0, data, writable
+FLG_GRAN4K  equ 11000000b   ; G=1, D=1, L=0, AVL=0 (upper nibble) => 0xC0
+LIM_4GB     equ 0x000FFFFF  ; with G=1 → ~4GB
+
 align 8
 gdt_start:
-    ; Null descriptor
+    ; 0) Null descriptor
     dd 0, 0
-    
-    ; Code segment (0x08) - base=0x20000 where stage2 is loaded
-    dw 0xFFFF       ; limit low
-    dw 0x0000       ; base low (0x20000 & 0xFFFF)
-    db 0x02         ; base mid (0x20000 >> 16)
-    db 10011010b    ; access
-    db 11001111b    ; flags + limit high
-    db 0x00         ; base high (0x20000 >> 24)
-    
-    ; Data segment (0x10) - FLAT model base=0
-    dw 0xFFFF       ; limit low
-    dw 0x0000       ; base low = 0
-    db 0x00         ; base mid = 0
-    db 10010010b    ; access
-    db 11001111b    ; flags + limit high
-    db 0x00         ; base high = 0
+
+    ; 1) CodeA (for Scheme A): base placeholder=0 (will be patched at runtime to CS<<4)
+    ;    limit=4GB (with G=1), access=code, flags=G=1,D=1
+    DESC 0x00000000, LIM_4GB, ACC_CODE32, FLG_GRAN4K
+
+    ; 2) CodeB (for Scheme B): flat base=0
+    DESC 0x00000000, LIM_4GB, ACC_CODE32, FLG_GRAN4K
+
+    ; 3) Data (flat base=0)
+    DESC 0x00000000, LIM_4GB, ACC_DATA32, FLG_GRAN4K
 gdt_end:
 
+; 16-bit LGDT uses 6-byte pseudo-descriptor: limit(2) + base(4, low 24 used)
 gdt_descriptor:
     dw gdt_end - gdt_start - 1
     dd 0                          ; Address calculated at runtime
@@ -99,36 +199,56 @@ gdt_descriptor:
 [bits 32]
 pm_start_32:
     ; Set up data segments immediately
-    mov eax, 0x10
-    mov ds, eax
-    mov es, eax
-    mov fs, eax
-    mov gs, eax
-    mov ss, eax
+    mov ax, 0x18
+    mov ds, ax
+    mov es, ax
+    mov dword [0xb8000], 0x2F412F41   ; 'A' 两次，看到就说明已到 pm32
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
     mov esp, 0x90000     ; Set stack
     
     ; Clear screen first for clean display
     mov edi, 0xb8000
     mov eax, 0x07200720  ; Spaces with light gray on black
-    mov ecx, 2000        ; 80*25 characters
+    mov ecx, 1000        ; 80*25 characters
     rep stosd
     
-    ; Display "PROTECTED MODE + IDT" at top of screen
-    mov word [0xb8000], 0x0F50      ; 'P' white on black
-    mov word [0xb8002], 0x0F52      ; 'R' white on black
-    mov word [0xb8004], 0x0F4F      ; 'O' white on black
-    mov word [0xb8006], 0x0F54      ; 'T' white on black
-    mov word [0xb8008], 0x0F45      ; 'E' white on black
-    mov word [0xb800a], 0x0F43      ; 'C' white on black
-    mov word [0xb800c], 0x0F54      ; 'T' white on black
-    mov word [0xb800e], 0x0F45      ; 'E' white on black
-    mov word [0xb8010], 0x0F44      ; 'D' white on black
-    mov word [0xb8012], 0x0F20      ; ' ' space
-    mov word [0xb8014], 0x0F2B      ; '+' yellow
-    mov word [0xb8016], 0x0F20      ; ' ' space
-    mov word [0xb8018], 0x0F49      ; 'I' white on black
-    mov word [0xb801a], 0x0F44      ; 'D' white on black
-    mov word [0xb801c], 0x0F54      ; 'T' white on black
+    ; Display method info at top of screen
+    %ifdef METHOD_A
+    ; Display "METHOD A + IDT" 
+    mov word [0xb8000], 0x0F4D      ; 'M' white on black
+    mov word [0xb8002], 0x0F45      ; 'E' white on black  
+    mov word [0xb8004], 0x0F54      ; 'T' white on black
+    mov word [0xb8006], 0x0F48      ; 'H' white on black
+    mov word [0xb8008], 0x0F4F      ; 'O' white on black
+    mov word [0xb800a], 0x0F44      ; 'D' white on black
+    mov word [0xb800c], 0x0F20      ; ' ' white on black
+    mov word [0xb800e], 0x0F41      ; 'A' white on black
+    mov word [0xb8010], 0x0F20      ; ' ' space
+    mov word [0xb8012], 0x0F2B      ; '+' yellow
+    mov word [0xb8014], 0x0F20      ; ' ' space
+    mov word [0xb8016], 0x0F49      ; 'I' white on black
+    mov word [0xb8018], 0x0F44      ; 'D' white on black
+    mov word [0xb801a], 0x0F54      ; 'T' white on black
+    %endif
+    %ifdef METHOD_B
+    ; Display "METHOD B + IDT"
+    mov word [0xb8000], 0x0F4D      ; 'M' white on black
+    mov word [0xb8002], 0x0F45      ; 'E' white on black  
+    mov word [0xb8004], 0x0F54      ; 'T' white on black
+    mov word [0xb8006], 0x0F48      ; 'H' white on black
+    mov word [0xb8008], 0x0F4F      ; 'O' white on black
+    mov word [0xb800a], 0x0F44      ; 'D' white on black
+    mov word [0xb800c], 0x0F20      ; ' ' white on black
+    mov word [0xb800e], 0x0F42      ; 'B' white on black
+    mov word [0xb8010], 0x0F20      ; ' ' space
+    mov word [0xb8012], 0x0F2B      ; '+' yellow  
+    mov word [0xb8014], 0x0F20      ; ' ' space
+    mov word [0xb8016], 0x0F49      ; 'I' white on black
+    mov word [0xb8018], 0x0F44      ; 'D' white on black
+    mov word [0xb801a], 0x0F54      ; 'T' white on black
+    %endif
     
     ; Setup IDT
     call setup_idt
@@ -145,7 +265,7 @@ pm_start_32:
     mov word [0xb8170], 0x0E50      ; 'P' yellow
     
     ; Enable interrupts
-    sti
+    ; sti
     
     ; Display trigger message BEFORE interrupt
     mov word [0xb8320], 0x0C49      ; 'I' red (row 2)
@@ -166,17 +286,19 @@ pm_start_32:
     mov word [0xb833e], 0x0C52      ; 'R' red
     mov word [0xb8340], 0x0C45      ; 'E' red
     mov word [0xb8342], 0x0C44      ; 'D' red
-    
+   
+    ;.haltone:
+    ;jmp .haltone  
     ; Trigger custom interrupt 0x30 ONCE
     int 0x30
     
     ; Disable interrupts after demo
-    cli
+    ;cli
     
     ; Disable PIC (Programmable Interrupt Controller) to stop all hardware interrupts
-    mov al, 0xFF        ; Mask all interrupts
-    out 0x21, al        ; Master PIC
-    out 0xA1, al        ; Slave PIC
+   ; mov al, 0xFF        ; Mask all interrupts
+   ; out 0x21, al        ; Master PIC
+   ; out 0xA1, al        ; Slave PIC
     
     ; Display completion message
     mov word [0xb86a0], 0x0B44      ; 'D' cyan (row 4)
@@ -208,8 +330,16 @@ setup_idt:
     mov ecx, 512        ; 2048/4 = 512 dwords
     rep stosd
     
-    ; Setup interrupt 0x30 - FIXED address calculation
-    mov eax, custom_interrupt_handler   ; Get handler offset (GDT base handles physical address)
+    ; Setup interrupt 0x30 - Universal address calculation
+    %if HANDLER_ADDR_MODE == 0
+    ; Method A: Use offset only (GDT base will be added by hardware)
+    mov eax, custom_interrupt_handler   ; Handler offset
+    %endif
+    %if HANDLER_ADDR_MODE == 1
+    ; Method B: Calculate linear address (flat model, base=0)
+    mov eax, 0x60000                   ; Our segment base (CS << 4)
+    add eax, custom_interrupt_handler   ; Add handler offset -> linear address
+    %endif
     
     ; Set up IDT entry for interrupt 0x30
     mov ebx, idt_table
@@ -217,7 +347,7 @@ setup_idt:
     
     ; Low 32 bits: offset[15:0] + segment selector
     mov [ebx], ax                       ; offset[15:0]
-    mov word [ebx + 2], 0x08           ; code segment selector
+    mov word [ebx + 2], PM_CODE_SEL    ; code segment selector (method-specific)
     
     ; High 32 bits: attributes + offset[31:16]
     shr eax, 16
