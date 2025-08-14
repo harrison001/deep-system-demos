@@ -60,11 +60,11 @@ stage2_start:
     mov [gdt_descriptor + 2], ax    ; Low word
     mov [gdt_descriptor + 4], dx    ; High word
    
-   ;-------------------------------------------- 统一的保护模式入口 ----------------------------------------
-   ; 根据配置选择不同的实现方法
+   ;-------------------------------------------- Unified Protected Mode Entry ----------------------------------------
+   ; Choose different implementation methods based on configuration
    
    %if PM_ENTRY_MODE == 1
-   ; Method B: 间接跳转方式 (使用farptr)
+   ; Method B: Indirect jump method (using farptr)
    ;compute target linear = (CS<<4) + pm_start_32  
    xor  eax, eax
    mov  ax, cs
@@ -77,7 +77,7 @@ stage2_start:
    %endif
    
    %if PM_ENTRY_MODE == 0
-   ; Method A: 需要运行时修补GDT
+   ; Method A: Requires runtime GDT patching
    ; Calculate BASE = (CS << 4) → result in DX:AX
    mov  ax, cs
    mov  dx, 16
@@ -202,7 +202,6 @@ pm_start_32:
     mov ax, 0x18
     mov ds, ax
     mov es, ax
-    mov dword [0xb8000], 0x2F412F41   ; 'A' 两次，看到就说明已到 pm32
     mov fs, ax
     mov gs, ax
     mov ss, ax
