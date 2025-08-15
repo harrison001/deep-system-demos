@@ -40,9 +40,9 @@ start:
     mov es, ax
     xor bx, bx              ; Offset address = 0
     mov ah, 0x02            ; BIOS 13h - Read sectors
-    mov al, 6               ; Read 6 sectors (for 2870 byte stage2)
+    mov al, 8               ; Read 8 sectors (for up to 4096 byte stage2)
     mov ch, 0               ; Cylinder 0
-    mov cl, 2               ; Sector 2
+    mov cl, 2               ; Sector 2 (starting sector)
     mov dh, 0               ; Head 0
     mov dl, [boot_drive]    ; Boot drive number
     int 0x13
