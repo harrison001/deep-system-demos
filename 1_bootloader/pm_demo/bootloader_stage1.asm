@@ -40,7 +40,7 @@ start:
     mov es, ax
     xor bx, bx              ; Offset address = 0
     mov ah, 0x02            ; BIOS 13h - Read sectors
-    mov al, 8               ; Read 8 sectors (for up to 4096 byte stage2)
+    mov al, 16              ; Read 16 sectors (for up to 8192 byte stage2)
     mov ch, 0               ; Cylinder 0
     mov cl, 2               ; Sector 2 (starting sector)
     mov dh, 0               ; Head 0

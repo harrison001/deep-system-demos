@@ -13,11 +13,13 @@ if [[ "$METHOD" != "A" && "$METHOD" != "B" ]]; then
     echo "  EXC       - Exception vector handling (0-19)"
     echo "  PIC       - PIC remapping + IRQ0 timer interrupt" 
     echo "  INTEGRITY - GDT/IDT 16-bit checksum verification"
+    echo "  SCHED     - Preemptive multitasking scheduler demo"
     echo ""
     echo "Examples:"
     echo "  $0 A                    # Method A, no extra features"
     echo "  $0 A \"EXC PIC\"          # Method A with exceptions and PIC"
     echo "  $0 B \"EXC PIC INTEGRITY\" # Method B with all features"
+    echo "  $0 A \"PIC SCHED\"        # Method A with scheduler demo"
     exit 1
 fi
 
@@ -57,6 +59,10 @@ for feature in $FEATURES; do
             NASM_FLAGS="$NASM_FLAGS -dENABLE_INTEGRITY"
             echo "  + GDT/IDT integrity checking"
             ;;
+        SCHED)
+            NASM_FLAGS="$NASM_FLAGS -dENABLE_SCHED"
+            echo "  + Preemptive multitasking scheduler demo"
+            ;;
         *)
             echo "Warning: Unknown feature '$feature' ignored"
             ;;
@@ -83,9 +89,9 @@ if [ $? -eq 0 ]; then
     dd if=bootloader_stage1.bin of=bootloader.img conv=notrunc bs=512 seek=0 2>/dev/null
     echo "Stage1 (MBR) written to sector 0"
     
-    # Write stage2 to sectors 1-8 (stage2 needs up to 8 sectors for full features)
+    # Write stage2 to sectors 1-16 (stage2 needs up to 16 sectors for full features)
     dd if=bootloader_stage2.bin of=bootloader.img conv=notrunc bs=512 seek=1 2>/dev/null
-    echo "Stage2 (Protected Mode + IDT) written to sectors 1-8"
+    echo "Stage2 (Protected Mode + IDT) written to sectors 1-16"
     
     echo ""
     echo "Bootloader ready: bootloader.img"
