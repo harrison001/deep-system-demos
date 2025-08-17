@@ -1,5 +1,5 @@
 ; =========================
-; File: stage2_sched.asm
+; File: bootloader_stage2.asm
 ; =========================
 [bits 16]
 [org 0x0]                  ; IP starts from 0, but CS=0x6000
@@ -478,7 +478,7 @@ install_exception_handlers:
     push eax
     push ebx
 
-    ; 仅示例安装 0,1,2,13（其余按需 SET_IDT）
+    ; Example: install only 0,1,2,13 (add others as needed with SET_IDT)
     mov ebx, idt_table
     add ebx, 0*8
 %if HANDLER_ADDR_MODE == 0
@@ -548,7 +548,7 @@ PIC2_CMD   equ 0xA0
 PIC2_DATA  equ 0xA1
 EOI        equ 0x20
 
-; （可选）PIT 设置
+; Optional PIT setup
 PIT_CMD  equ 0x43
 PIT_CH0  equ 0x40
 %ifndef TICK_HZ
@@ -598,7 +598,7 @@ pic_remap:
     out PIC1_DATA, al
     ret
 
-; IRQ0 handler —— 使用 pushad/popad
+; IRQ0 handler - using pushad/popad
 isr_irq0:
     pushad
     mov  ax, 0x18
@@ -621,7 +621,7 @@ isr_irq0:
     call print_hex8_at_edi
 
 %ifdef ENABLE_SCHED
-    jmp scheduler_switch         ; 不返回：从“新任务”栈 popad; iretd
+    jmp scheduler_switch         ; No return: popad/iretd from "new task" stack
 %endif
 
     mov al, EOI
@@ -728,7 +728,7 @@ update_run_at_schd:
     mov  ebx, [current_task]     ; 0=A, 1=B, 2=Idle
     mov  edi, 0x60000
     mov  al,  [edi + run_chars + ebx]
-    mov  ah,  0x0E               ; 黄字更醒目
+    mov  ah,  0x0E               ; Yellow text more visible
     mov  [0xb860C], ax
     pop  ebx
     pop  eax
@@ -739,7 +739,7 @@ update_run_at_schd:
 ;----------------------------------------
 %ifdef ENABLE_SCHED
 
-; 构建初始上下文：匹配 pushad; popad + iretd 的栈布局
+; Build initial context: match pushad/popad + iretd stack layout
 ; IN:  EBX = task entry (label), ECX = stack top linear
 ; OUT: EAX = initial ESP for this task
 build_initial_frame:
@@ -747,11 +747,11 @@ build_initial_frame:
     mov  edx, ecx
     sub  edx, (8*4 + 3*4)      ; 8 regs + IRET = 44 bytes
 
-    ; popad 顺序对应的寄存器槽（逆序写）
+    ; Register slots for popad order (written in reverse order)
     mov dword [edx+ 0], 0      ; EDI
     mov dword [edx+ 4], 0      ; ESI
     mov dword [edx+ 8], 0      ; EBP
-    mov dword [edx+12], 0      ; ESP(dummy, popad ignores)
+    mov dword [edx+12], 0      ; ESP (dummy, popad ignores)
     mov dword [edx+16], 0      ; EBX
     mov dword [edx+20], 0      ; EDX
     mov dword [edx+24], 0      ; ECX
@@ -759,19 +759,19 @@ build_initial_frame:
 
 %ifdef METHOD_B
     mov eax, 0x60000
-    add eax, ebx               ; linear EIP
+    add eax, ebx               ; Linear EIP
 %else
-    mov eax, ebx               ; offset EIP
+    mov eax, ebx               ; Offset EIP
 %endif
     mov dword [edx+32], eax    ; EIP
     mov dword [edx+36], KCODE  ; CS
     mov dword [edx+40], 0x202  ; EFLAGS (IF=1)
 
-    mov eax, edx               ; return ESP
+    mov eax, edx               ; Return ESP
     pop edx
     ret
 
-; 三个示例任务
+; Three example tasks
 task_a:
 .loop_a:
     inc dword [task_a_counter]
@@ -814,13 +814,13 @@ idle_task:
     sti
     jmp .loop_idle
 
-; 初始化调度器
+; Initialize scheduler
 init_scheduler:
     push eax
     push ebx
     push ecx
 %ifdef ENABLE_PIC
-    call pit_init              ; 可选：设定时钟频率
+    call pit_init              ; Optional: set timer frequency
 %endif
     ; Task A
     mov  ebx, task_a
@@ -845,7 +845,7 @@ init_scheduler:
 
     mov  dword [current_task], 0
 
-    ; 简单 UI 标签
+    ; Simple UI labels
     mov word [0xb8600], 0x0E53  ; 'S'
     mov word [0xb8602], 0x0E43  ; 'C'
     mov word [0xb8604], 0x0E48  ; 'H'
@@ -868,25 +868,25 @@ init_scheduler:
     pop eax
     ret
 
-; 真实切换：首轮直接启动 Task A；之后按轮转保存/加载 ESP
+; Real switching: first round directly starts Task A; then round-robin save/load ESP
 scheduler_switch:
-    ; 保守做法：进入调度器就把 DS/ES 设成内核数据段，避免某些路径没设好
+    ; Conservative approach: set DS/ES to kernel data segment on scheduler entry
     push eax
     mov  ax, KDATA
     mov  ds, ax
     mov  es, ax
     pop  eax
 
-    ; ---------------- 首轮：直接跳入 Task A ----------------
+    ; ---------------- First round: direct jump to Task A ----------------
     cmp  dword [scheduler_started], 0
     jne  .normal_switch
 
-    ; 设定当前任务为 0（Task A），加载其预构建的 ESP
+    ; Set current task to 0 (Task A), load its pre-built ESP
     mov  dword [current_task], 0
     mov  edx, 0
     shl  edx, 5                 ; edx = 0 * 32
     add  edx, pcb_table         ; &pcb_table[0]
-    mov  esp, [edx]             ; 装载 Task A 的初始 ESP
+    mov  esp, [edx]             ; Load Task A's initial ESP
     mov  dword [scheduler_started], 1
     call update_run_at_schd
 
@@ -898,16 +898,16 @@ scheduler_switch:
     iretd
 
 .normal_switch:
-    ; ---------------- 正常轮转：保存当前 → 选择下一个 → 加载 ----------------
+    ; ---------------- Normal rotation: save current → select next → load ----------------
     mov  eax, [current_task]
 
-    ; 保存当前任务 ESP 到其 PCB
+    ; Save current task ESP to its PCB
     mov  edx, eax
     shl  edx, 5                 ; edx = eax * 32
     add  edx, pcb_table         ; &pcb_table[eax]
     mov  [edx], esp             ; save current ESP
 
-    ; 轮转到下一个任务 (0->1->2->0)
+    ; Round-robin to next task (0->1->2->0)
     inc  eax
     cmp  eax, 3
     jb   .ok
@@ -916,7 +916,7 @@ scheduler_switch:
     mov  [current_task], eax
     call update_run_at_schd
 
-    ; 加载下一任务 ESP
+    ; Load next task ESP
     mov  edx, eax
     shl  edx, 5                 ; edx = eax * 32
     add  edx, pcb_table         ; &pcb_table[eax]
@@ -932,7 +932,7 @@ scheduler_switch:
 ; ---- Scheduler Data ----
 align 4
 pcb_table:
-    ; Task A PCB (32 bytes each). Only ESP[0] used by此版本，余位保留
+    ; Task A PCB (32 bytes each). Only ESP[0] used in this version, rest reserved
     dd 0,0,0,0,0,0,0,0
     dd 0,0,0,0,0,0,0,0
     dd 0,0,0,0,0,0,0,0
@@ -970,4 +970,4 @@ idt_descriptor:
 ; =========================
 ; Example:
 ;   nasm stage2_sched.asm -f bin -o stage2.bin -dMETHOD_B -dENABLE_PIC -dENABLE_SCHED
-; 然后按你的 stage1 加载到 CS=0x6000 执行；或按你既有流程引导。
+; Then load to CS=0x6000 via your stage1 and execute; or follow your existing boot flow.
