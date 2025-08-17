@@ -107,6 +107,7 @@ It bridges the gap between **commercial system design** and **teaching-oriented 
 
 ---
 
-⚠️ Disclaimer: This demo contains **no proprietary or confidential code**.  
-It is a clean-room educational implementation inspired by architectural  
-patterns I designed in production environments.
+⚠️ Disclaimer  
+This repository contains no proprietary or confidential code.  
+It is a clean-room educational implementation, inspired by architectural 
+patterns originally designed for production environments.
