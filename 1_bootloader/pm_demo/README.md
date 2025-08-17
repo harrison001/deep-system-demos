@@ -1,4 +1,4 @@
-# x86 Bootloader Framework (Demo from Production System)
+# x86 Bootloader Framework — From Production to Open-Source Demo
 
 ## 📌 Background
 This project is a **public, simplified demonstration** of a custom bootloader framework I originally developed for enterprise embedded systems.  
