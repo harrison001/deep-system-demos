@@ -969,5 +969,5 @@ idt_descriptor:
 ; ===== Build & Run =======
 ; =========================
 ; Example:
-;   nasm stage2_sched.asm -f bin -o stage2.bin -dMETHOD_B -dENABLE_PIC -dENABLE_SCHED
-; Then load to CS=0x6000 via your stage1 and execute; or follow your existing boot flow.
+;   nasm bootloader_stage2.asm -f bin -o bootloader_stage2.bin -dMETHOD_B -dENABLE_PIC -dENABLE_SCHED
+; Then load to CS=0x6000 via the stage1 and execute;
